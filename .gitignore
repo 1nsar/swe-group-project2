@@ -1,26 +1,33 @@
+# env
+.env
+*.env
+
 # Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-
-# Virtual environment
 .venv/
 venv/
 env/
-
-# Environment variables (VERY IMPORTANT)
-.env
-
-# Pytest
 .pytest_cache/
+backend/data/*.json
 
-# VSCode
-.vscode/
+# Node
+node_modules/
+frontend/dist/
+frontend/.vite/
 
-# OS files
+# OS
 .DS_Store
 Thumbs.db
 
+# IDE
+.vscode/
+.idea/
+
 # Logs
 *.log
+
+# Extracted submission files (not part of the implementation)
+poc_extracted/
