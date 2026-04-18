@@ -1,5 +1,25 @@
 fastapi==0.115.0
 uvicorn[standard]==0.30.6
 pydantic==2.8.2
-PyJWT==2.9.0
 python-multipart==0.0.12
+
+# Auth (Member 1 uses python-jose; Member 2's stub + Member 3 use PyJWT)
+PyJWT==2.9.0
+python-jose[cryptography]
+passlib[bcrypt]
+bcrypt==4.0.1
+python-dotenv
+
+# AI (Member 3) — multi-provider support
+anthropic>=0.40.0,<1.0
+# google-genai powers the Gemini provider. Optional at runtime: the provider
+# imports it lazily and will raise a clear error only if actually invoked.
+google-genai>=0.8.0
+# httpx is used by the Ollama provider (streaming HTTP) as well as the test
+# client. Promoted from test-only to a runtime dep.
+httpx
+
+# Tests
+pytest
+pytest-asyncio
+websockets
