@@ -1,5 +1,6 @@
+from __future__ import annotations
 from pydantic import BaseModel
-from typing import Any
+from typing import Any, Optional
 import uuid
 from datetime import datetime, timezone
 
@@ -62,8 +63,8 @@ class DocumentCreate(BaseModel):
 
 
 class DocumentUpdate(BaseModel):
-    title: str | None = None
-    content: Any | None = None
+    title: Optional[str] = None
+    content: Optional[Any] = None
 
 
 class DocumentSummary(BaseModel):
