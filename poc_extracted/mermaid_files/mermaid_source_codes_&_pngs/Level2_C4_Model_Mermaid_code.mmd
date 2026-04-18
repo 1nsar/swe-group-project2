@@ -1,0 +1,27 @@
+C4Container
+  title Container Diagram — Collaborative Document Editor
+  Person(user, "End User")
+  System_Ext(llm, "LLM API")
+  System_Ext(auth, "Identity Provider")
+  System_Ext(storage, "Object Storage")
+  System_Boundary(sys, "Collaborative Document Editor") {
+    Container(fe, "Frontend App", "React + TipTap", "Editor UI, presence overlay, AI suggestion panel")
+    Container(api, "Backend API", "Node.js / Express", "REST: document CRUD, auth, permissions, AI job submission")
+    Container(rt, "Real-Time Service", "Node.js + ws", "WebSocket sessions, CRDT delta broadcast, presence")
+    Container(ai, "AI Service", "Python / FastAPI", "Prompt construction, LLM calls, quota enforcement")
+    Container(queue, "Job Queue", "Redis + BullMQ", "Async AI job decoupling, retries")
+    ContainerDb(db, "Database", "PostgreSQL", "Documents, versions, users, permissions, AI logs")
+    ContainerDb(cache, "Cache / Pub-Sub", "Redis", "Sessions, presence state, cross-node event fan-out")
+  }
+  Rel(user, fe, "Uses", "HTTPS")
+  Rel(fe, api, "CRUD, AI jobs", "REST")
+  Rel(fe, rt, "Live edits, cursors", "WebSocket")
+  Rel(api, db, "Reads / writes", "SQL")
+  Rel(api, cache, "Sessions, events", "Redis")
+  Rel(api, queue, "Enqueues AI jobs", "BullMQ")
+  Rel(rt, cache, "Presence, pub-sub", "Redis")
+  Rel(ai, queue, "Dequeues jobs", "BullMQ")
+  Rel(ai, llm, "Prompt / completion", "HTTPS")
+  Rel(ai, db, "Writes AI logs", "SQL")
+  Rel(api, auth, "Token validation", "OIDC")
+  Rel(api, storage, "Export files", "HTTPS")

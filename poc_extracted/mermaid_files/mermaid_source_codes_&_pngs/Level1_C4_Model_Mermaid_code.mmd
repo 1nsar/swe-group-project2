@@ -1,0 +1,13 @@
+C4Context
+  title System Context — Collaborative Document Editor
+  Person(user, "End User", "Creates and collaborates on documents")
+  Person(admin, "Org Admin", "Manages roles and AI usage policies")
+  System(sys, "Collaborative Doc Editor", "Real-time editing platform with AI assistant")
+  System_Ext(llm, "LLM API", "e.g. Anthropic Claude, OpenAI")
+  System_Ext(auth, "Identity Provider", "OAuth 2.0 / OIDC e.g. Google")
+  System_Ext(storage, "Object Storage", "e.g. AWS S3 — exports and media")
+  Rel(user, sys, "Edits documents, invokes AI", "HTTPS / WebSocket")
+  Rel(admin, sys, "Configures roles and quotas", "HTTPS")
+  Rel(sys, llm, "Sends prompts, receives text", "HTTPS")
+  Rel(sys, auth, "Validates identity tokens", "OIDC")
+  Rel(sys, storage, "Stores exported files", "HTTPS")
