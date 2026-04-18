@@ -1,33 +1,46 @@
-# env
-.env
-*.env
-
 # Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+
+# Virtual environment
 .venv/
 venv/
 env/
+
+# Environment variables
+.env
+*.env
+!.env.example
+
+# Pytest / coverage
 .pytest_cache/
-backend/data/*.json
+.coverage
+htmlcov/
 
-# Node
-node_modules/
-frontend/dist/
-frontend/.vite/
+# Editors
+.vscode/
+.idea/
 
-# OS
+# OS files
 .DS_Store
 Thumbs.db
 
-# IDE
-.vscode/
-.idea/
+# Office temp / lock files
+~$*
 
 # Logs
 *.log
 
-# Extracted submission files (not part of the implementation)
+# Node / Vite
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Local JSON store (created at runtime)
+backend/data/*.json
+
+# Extracted submission / scratch files
 poc_extracted/
+test_write.txt
