@@ -1,30 +1,31 @@
 """
-Auth dependency stub — Member 1 will replace this with real JWT validation.
-Until then, reads Authorization header and decodes without verification,
-or falls back to a dev user so Member 2 can develop independently.
+Real JWT auth dependency — integrates Member 1's auth logic.
+Replaces the dev stub. get_current_user is imported by all routers.
 """
-from fastapi import Header
+from fastapi import Depends, HTTPException
+from fastapi.security import OAuth2PasswordBearer
+from backend.core.auth import decode_token
 from backend.models.user import CurrentUser
+from backend.storage import json_store as store
 
-import jwt as pyjwt
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
-async def get_current_user(authorization: str = Header(default="")) -> CurrentUser:
-    if authorization.startswith("Bearer "):
-        token = authorization.removeprefix("Bearer ")
-        try:
-            payload = pyjwt.decode(token, options={"verify_signature": False})
-            return CurrentUser(
-                id=payload.get("sub", "unknown"),
-                email=payload.get("email", "unknown@example.com"),
-                username=payload.get("username", "unknown"),
-            )
-        except Exception:
-            pass
+def get_current_user(token: str = Depends(oauth2_scheme)) -> CurrentUser:
+    payload = decode_token(token)
 
-    # Dev fallback — remove when Member 1 wires real JWT
+    if payload.get("type") != "access":
+        raise HTTPException(status_code=401, detail="Invalid access token")
+
+    user_id = payload.get("sub")
+    all_users = store.all_values("users")
+    user = next((u for u in all_users if u["id"] == user_id), None)
+
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
     return CurrentUser(
-        id="dev-user-001",
-        email="dev@example.com",
-        username="devuser",
+        id=user["id"],
+        email=user["email"],
+        username=user["username"],
     )

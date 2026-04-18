@@ -47,6 +47,11 @@ export default function Dashboard() {
     <div className="page">
       <div className="topbar">
         <h1>My Documents</h1>
+        <button className="ghost" onClick={() => {
+          localStorage.removeItem("access_token");
+          localStorage.removeItem("refresh_token");
+          navigate("/login");
+        }}>Sign out</button>
       </div>
 
       {error && <p style={{ color: "var(--danger)", marginBottom: "1rem" }}>{error}</p>}
