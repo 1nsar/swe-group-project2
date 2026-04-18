@@ -110,6 +110,18 @@ port), so `VITE_WS_URL` should be `ws://localhost:8080` — see deviations below
 2. **Summarize** — with length options (short/medium/long/bullets).
 3. *(Grammar fix + Custom Prompt are also wired up and selectable from the panel.)*
 
+### Bonus features (Member 2)
+
+4. **Partial AI suggestion acceptance (+2 pts)** — the diff view in the AI panel makes each inserted word/phrase clickable. Clicking toggles it to a rejected state (greyed out, strikethrough). An "Accept Selected" button appears whenever at least one insert is rejected, applying only the kept changes via a word-level LCS diff. "Accept All" preserves the original full-acceptance flow.
+
+5. **Playwright E2E tests (+2 pts)** — `frontend/e2e/app.spec.ts` covers the full user journey in a real Chromium browser (6 tests, all passing):
+   - Register → login
+   - Create document → type → auto-save indicator
+   - Save version → edit → open history → restore
+   - Title change → triggers save → appears on dashboard
+   - AI panel opens, shows compose UI, closes
+   - Logout → redirects to `/login`
+
 ## Tests
 
 Backend (`pytest`) — run from the repo root:
@@ -124,13 +136,21 @@ pytest backend/tests -v
 - `test_ai_api.py`: end-to-end SSE happy path, auth, accept/reject, history isolation.
 - `test_websocket.py`: unauth rejection, valid-token handshake, two-client update exchange, typing propagation, stale-client reconciliation.
 
-Frontend (`vitest`) — run from `frontend/`:
+Frontend unit (`vitest`) — run from `frontend/`:
 
 ```bash
 cd frontend && npm install && npm test
 ```
 
 - `AIPanel.test.tsx`: renders controls, disables Generate without selection, shows streaming tokens, accept/reject wiring.
+
+Frontend E2E (`playwright`) — requires backend + frontend both running:
+
+```bash
+cd frontend && npm run test:e2e
+```
+
+- `e2e/app.spec.ts`: 6 end-to-end tests covering register/login, document creation, auto-save, version restore, AI panel, and logout.
 
 ## Architecture deviations from Assignment 1
 
