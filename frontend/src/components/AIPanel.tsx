@@ -6,7 +6,47 @@ import {
   type AIInteractionSummary,
   type QuotaSnapshot,
 } from "../api/ai";
-import { diffWords } from "../utils/wordDiff";
+import { diffWords, type DiffPart } from "../utils/wordDiff";
+
+/**
+ * Build the accepted text from the diff parts given a set of rejected insert
+ * indices. Used for partial AI suggestion acceptance (bonus feature).
+ *
+ * Rules:
+ *  - equal  → always kept
+ *  - delete + insert pair → use insert text if accepted, keep delete text if rejected
+ *  - standalone insert → include if accepted, skip if rejected
+ *  - standalone delete → always applied (text removed in suggestion)
+ */
+function buildPartialText(parts: DiffPart[], rejected: Set<number>): string {
+  let result = "";
+  let insertIdx = 0;
+  let i = 0;
+  while (i < parts.length) {
+    const part = parts[i];
+    if (part.op === "equal") {
+      result += part.text;
+      i++;
+    } else if (part.op === "delete") {
+      const next = parts[i + 1];
+      if (next && next.op === "insert") {
+        // Replacement pair: use insert if accepted, keep original if rejected
+        result += rejected.has(insertIdx) ? part.text : next.text;
+        insertIdx++;
+        i += 2;
+      } else {
+        // Pure deletion — always apply
+        i++;
+      }
+    } else {
+      // Standalone insert
+      if (!rejected.has(insertIdx)) result += part.text;
+      insertIdx++;
+      i++;
+    }
+  }
+  return result;
+}
 
 interface Props {
   docId: string;
@@ -232,6 +272,33 @@ export default function AIPanel({
     setState({ kind: "idle" });
   }
 
+  // ── partial acceptance ────────────────────────────────────────────────────
+  const [rejectedInserts, setRejectedInserts] = useState<Set<number>>(new Set());
+
+  // Reset rejected set whenever a new suggestion arrives.
+  useEffect(() => {
+    if (state.kind === "ready") setRejectedInserts(new Set());
+  }, [state.kind]);
+
+  function toggleInsert(idx: number) {
+    setRejectedInserts((prev) => {
+      const next = new Set(prev);
+      next.has(idx) ? next.delete(idx) : next.add(idx);
+      return next;
+    });
+  }
+
+  async function acceptPartial() {
+    if (state.kind !== "ready") return;
+    const parts = diffWords(selectionText, state.output);
+    const text = buildPartialText(parts, rejectedInserts);
+    try {
+      await aiApi.accept(state.interactionId, text.length);
+    } catch { /* non-fatal */ }
+    onAccept(text);
+    setState({ kind: "idle" });
+  }
+
   const streaming = state.kind === "streaming";
   const pending = state.kind === "pending";
   const ready = state.kind === "ready";
@@ -418,7 +485,12 @@ export default function AIPanel({
               )}
 
               {ready && (
-                <DiffView original={selectionText} suggestion={output} />
+                <InteractiveDiffView
+                  original={selectionText}
+                  suggestion={output}
+                  rejectedInserts={rejectedInserts}
+                  onToggle={toggleInsert}
+                />
               )}
 
               {state.kind === "cancelled" && output && (
@@ -447,7 +519,12 @@ export default function AIPanel({
 
               {ready && (
                 <div className="ai-actions-row">
-                  <button className="primary" onClick={accept}>✓ Accept</button>
+                  <button className="primary" onClick={accept}>✓ Accept All</button>
+                  {rejectedInserts.size > 0 && (
+                    <button className="primary" onClick={acceptPartial}>
+                      ✓ Accept Selected
+                    </button>
+                  )}
                   <button className="ghost" onClick={reject}>✕ Reject</button>
                 </div>
               )}
@@ -490,41 +567,68 @@ export default function AIPanel({
 }
 
 /**
- * Two-column diff view (§2.5 ADR-004). Left column shows the original with
- * deletions marked; right column shows the suggestion with insertions marked.
- * Using a word-level diff — see ``utils/wordDiff.ts``.
+ * Interactive two-column diff view (§2.5 ADR-004 + bonus partial acceptance).
+ * Insert spans in the right column are clickable — clicking toggles the insert
+ * into the rejected set so the user can accept only the parts they want.
  */
-function DiffView({ original, suggestion }: { original: string; suggestion: string }) {
+function InteractiveDiffView({
+  original,
+  suggestion,
+  rejectedInserts,
+  onToggle,
+}: {
+  original: string;
+  suggestion: string;
+  rejectedInserts: Set<number>;
+  onToggle: (idx: number) => void;
+}) {
   const parts = diffWords(original, suggestion);
+
+  // Tag each insert op with a stable index matching buildPartialText's counter.
+  let tagIdx = 0;
+  const tagged = parts.map((p) => ({ ...p, insertIdx: p.op === "insert" ? tagIdx++ : -1 }));
+
   return (
     <div className="ai-diff">
       <div className="ai-diff-col">
         <div className="ai-diff-label">Original</div>
         <div className="ai-diff-body">
           {original.trim() === "" && <em>(no selection)</em>}
-          {parts.map((p, i) => {
+          {tagged.map((p, i) => {
             if (p.op === "insert") return null;
             const cls = p.op === "delete" ? "diff-del" : "diff-eq";
-            return (
-              <span key={`o-${i}`} className={cls}>
-                {p.text}
-              </span>
-            );
+            return <span key={`o-${i}`} className={cls}>{p.text}</span>;
           })}
         </div>
       </div>
       <div className="ai-diff-col">
-        <div className="ai-diff-label">Suggestion</div>
+        <div className="ai-diff-label">
+          Suggestion
+          {rejectedInserts.size > 0 && (
+            <span className="diff-partial-hint"> (click inserts to toggle)</span>
+          )}
+        </div>
         <div className="ai-diff-body">
           {suggestion.trim() === "" && <em>(empty)</em>}
-          {parts.map((p, i) => {
+          {tagged.map((p, i) => {
             if (p.op === "delete") return null;
-            const cls = p.op === "insert" ? "diff-ins" : "diff-eq";
-            return (
-              <span key={`s-${i}`} className={cls}>
-                {p.text}
-              </span>
-            );
+            if (p.op === "insert") {
+              const rejected = rejectedInserts.has(p.insertIdx);
+              return (
+                <span
+                  key={`s-${i}`}
+                  className={`diff-ins${rejected ? " rejected" : ""}`}
+                  onClick={() => onToggle(p.insertIdx)}
+                  title={rejected ? "Click to include this change" : "Click to exclude this change"}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => e.key === "Enter" && onToggle(p.insertIdx)}
+                >
+                  {p.text}
+                </span>
+              );
+            }
+            return <span key={`s-${i}`} className="diff-eq">{p.text}</span>;
           })}
         </div>
       </div>

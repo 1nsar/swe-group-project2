@@ -339,8 +339,92 @@ document (Merged_Styled.docx).
 - **Forced platform constraints** (5): query-param JWT on WebSocket.
 - **Configuration fixes** (18): WebSocket port.
 
-## Member 1 and Member 2 scope
+## Member 2 scope: documents, editor, versioning, dashboard
 
-Members 1 and 2 will document their own deviations in this file before the
-final submission (permission model rollout, CRUD surface changes, storage
-backend deviations, etc.). This section is intentionally left for them.
+### 19. Backend language: Node.js/Express → FastAPI (forced by Assignment 2)
+
+- **Design (A1):** §2.2 C4 container diagram shows the backend API as
+  "Node.js / Express".
+- **Implementation:** FastAPI (Python). All REST document endpoints live in
+  `backend/routers/documents.py`.
+- **Why:** Assignment 2 mandates FastAPI as a technology constraint. This is
+  not a design choice.
+- **Verdict:** forced platform constraint.
+
+### 20. Storage: PostgreSQL → JSON file store (conscious compromise)
+
+- **Design (A1):** §2.4 ER diagram and §2.5 ADR show PostgreSQL with tables
+  for DOCUMENTS, DOCUMENT_VERSIONS, DOCUMENT_PERMISSIONS, USERS, etc.
+- **Implementation:** `backend/storage/json_store.py` — a thin read/write
+  layer over flat JSON files in `backend/data/`. One file per collection
+  (documents.json, versions.json, users.json, permissions.json,
+  refresh_tokens.json).
+- **Why:** Assignment 2 explicitly states "a database is not required —
+  in-memory storage or file-based persistence (e.g., JSON files) is
+  acceptable." JSON files persist across server restarts (unlike in-memory
+  dicts), require zero infrastructure, and are sufficient for demo-scale load.
+  The storage layer is abstracted behind a `get / put / delete / all_values`
+  interface, so swapping in SQLAlchemy + PostgreSQL later is isolated to
+  `json_store.py`.
+- **Verdict:** conscious compromise. Correct at demo scale; upgrade path
+  is a single-file change.
+
+### 21. Authentication: external OIDC provider → self-issued JWT (forced by Assignment 2)
+
+- **Design (A1):** §2.2 shows an external "Identity Provider (OAuth 2.0 /
+  OIDC e.g. Google)" as a system boundary.
+- **Implementation:** `backend/core/auth.py` issues HS256 JWTs directly
+  (python-jose). Registration and login are handled by
+  `backend/routers/auth.py`. No external provider is involved.
+- **Why:** Assignment 2 mandates "JWT-based authentication" — self-issued
+  tokens with short-lived access tokens (20 min) and refresh tokens (3 days).
+  Adding an external OIDC dependency would complicate local setup without
+  satisfying any grading criterion.
+- **Verdict:** forced by Assignment 2 constraints. The JWT payload shape
+  (`sub`, `email`, `username`) was chosen to match the OIDC `id_token`
+  convention so a future migration to an external provider is additive.
+
+### 22. Document content: `yjs_state bytea` → TipTap JSON (improvement)
+
+- **Design (A1):** §2.4 ER diagram stores `yjs_state bytea` in the DOCUMENTS
+  table (Yjs CRDT binary).
+- **Implementation:** `content` is stored as TipTap's native JSON document
+  (`{"type": "doc", "content": [...]}`) in the JSON store. Member 3's LWW
+  collaboration layer also uses this format for broadcast payloads.
+- **Why:** consistent with deviation 1 (LWW instead of Yjs CRDT). Storing
+  TipTap JSON keeps the content human-readable, debuggable, and directly
+  loadable by the editor without a CRDT library. Member 1's original
+  implementation stored content as a plain string, which loses all formatting;
+  TipTap JSON preserves headings, bold, lists, and code blocks faithfully.
+- **Verdict:** improvement given the LWW collaboration model.
+
+### 23. Document versions: inline array → separate collection (improvement)
+
+- **Design (A1):** §2.4 ER diagram has a separate DOCUMENT_VERSIONS table
+  linked by `document_id`.
+- **Implementation:** `backend/data/versions.json` is a separate flat
+  collection keyed by `version_id`. Member 1's original draft embedded
+  versions as an inline array inside the document record, which made restore
+  operations overwrite the entire document object.
+- **Why:** keeping versions in a separate collection matches the A1 ER diagram
+  exactly, avoids unbounded document object growth, and makes the restore
+  endpoint a clean two-step (snapshot current → overwrite from version) with
+  no risk of corrupting sibling fields.
+- **Verdict:** improvement, aligned with A1 design.
+
+### 24. Auth integration: Member 1's in-memory dicts → JSON-persisted users (improvement)
+
+- **Design (A1):** no storage technology specified for users at the auth level.
+- **Implementation:** Member 1's original `backend/app/storage.py` kept
+  `users` and `refresh_tokens` as plain Python dicts (lost on server restart).
+  Member 2 adapted the auth routes to use `json_store.py`, persisting users
+  and refresh tokens to `backend/data/users.json` and
+  `backend/data/refresh_tokens.json`.
+- **Why:** restarting the backend during development or the demo would
+  invalidate all registered accounts and force re-registration. Persistence
+  is essential for a realistic demo flow.
+- **Verdict:** improvement.
+
+## Member 1 scope: auth, users, sharing, security
+
+Member 1 will document their own deviations here before final submission.

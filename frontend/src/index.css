@@ -501,6 +501,24 @@ input[type="text"]:focus { border-color: var(--primary); box-shadow: 0 0 0 2px r
   color: #14532d;
   padding: 0 1px;
   border-radius: 2px;
+  cursor: pointer;
+  outline: 1px solid transparent;
+  transition: outline-color 0.1s;
+}
+.ai-diff-body .diff-ins:hover {
+  outline-color: #16a34a;
+}
+.ai-diff-body .diff-ins.rejected {
+  background: #f1f5f9;
+  color: #94a3b8;
+  text-decoration: line-through;
+  outline-color: transparent;
+}
+.diff-partial-hint {
+  font-size: 0.72rem;
+  color: #64748b;
+  font-weight: normal;
+  margin-left: 4px;
 }
 
 /* ── Remote cursors (§1.2 FR-RT-03) ── */
