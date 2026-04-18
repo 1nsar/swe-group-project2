@@ -1,4 +1,4 @@
-const BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+const BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
 function getToken(): string {
   return localStorage.getItem("access_token") ?? "";
