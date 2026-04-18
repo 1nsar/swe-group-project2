@@ -9,18 +9,38 @@ __pycache__/
 venv/
 env/
 
-# Environment variables (VERY IMPORTANT)
+# Environment variables
 .env
+*.env
+!.env.example
 
-# Pytest
+# Pytest / coverage
 .pytest_cache/
+.coverage
+htmlcov/
 
-# VSCode
+# Editors
 .vscode/
+.idea/
 
 # OS files
 .DS_Store
 Thumbs.db
 
+# Office temp / lock files
+~$*
+
 # Logs
 *.log
+
+# Node / Vite
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Local JSON store (created at runtime)
+backend/data/*.json
+
+# Extracted submission / scratch files
+poc_extracted/
+test_write.txt
