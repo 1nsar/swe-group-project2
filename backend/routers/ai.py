@@ -38,7 +38,7 @@ import asyncio
 import hashlib
 import json
 from datetime import datetime, timezone
-from typing import AsyncIterator
+from typing import AsyncIterator, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
@@ -105,7 +105,7 @@ def _load_doc_or_404(document_id: str) -> dict:
 
 @router.get("/actions")
 def list_actions(
-    document_id: str | None = None,
+    document_id: Optional[str] = None,
     user: CurrentUser = Depends(get_current_user),
 ):
     """Available AI actions.
