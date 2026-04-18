@@ -6,8 +6,11 @@
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
 .venv/
 venv/
+env/
+.pytest_cache/
 backend/data/*.json
 
 # Node
@@ -22,6 +25,9 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+
+# Logs
+*.log
 
 # Extracted submission files (not part of the implementation)
 poc_extracted/
