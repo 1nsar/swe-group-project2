@@ -556,5 +556,3 @@ FastAPI dependencies provide a clean and reusable way to enforce authentication 
 
 **Verdict:**  
 Improvement.
-
-Member 1 will document their own deviations here before final submission.
