@@ -427,4 +427,134 @@ document (Merged_Styled.docx).
 
 ## Member 1 scope: auth, users, sharing, security
 
+## 25. Authentication model: OAuth/OIDC -> self-issued JWT
+
+**Design (A1):**  
+The architecture specified authentication via an external Identity Provider using OAuth 2.0 / OIDC, with token validation handled by the backend.
+
+**Implementation:**  
+Authentication is implemented directly in the FastAPI backend using self-issued JWT tokens (HS256). The system supports:
+- short-lived access tokens (20 minutes)
+- long-lived refresh tokens (3 days)
+
+Tokens are issued and validated entirely within the backend without external providers.
+
+**Why:**  
+Assignment 2 explicitly requires JWT-based authentication and does not require external identity providers. Integrating OAuth/OIDC would add significant complexity without improving the assignment outcome.
+
+**Verdict:**  
+Compromise forced by assignment scope, but aligned with Assignment 2 requirements.
+
+---
+
+## 26. Password storage: plaintext/unspecified -> bcrypt hashing
+
+**Design (A1):**  
+Authentication was required, but password hashing details were not fully specified.
+
+**Implementation:**  
+Passwords are hashed using bcrypt via Passlib. Plaintext passwords are never stored.
+
+**Why:**  
+Secure password storage is mandatory for any authentication system. Bcrypt provides salting and strong resistance to brute-force attacks.
+
+**Impact:**  
+- prevents exposure of raw credentials  
+- improves backend security  
+- adds small computation cost during login
+
+**Verdict:**  
+Improvement.
+
+---
+
+## 27. Refresh token handling: persistent session store -> in-memory token store
+
+**Design (A1):**  
+Session handling implied a more persistent session lifecycle.
+
+**Implementation:**  
+Refresh tokens are stored in-memory using a Python dictionary.
+
+**Why:**  
+Persistent token storage would require additional database integration. In-memory storage was sufficient for assignment scope and much faster to implement.
+
+**Impact:**  
+- refresh tokens are lost on server restart  
+- no token revocation or rotation  
+- simpler implementation
+
+**Verdict:**  
+Compromise.
+
+---
+
+## 28. Permission model: database-backed RBAC -> inline role mapping
+
+**Design (A1):**  
+Role-based access control was designed with persistent storage and more formal permission structures.
+
+**Implementation:**  
+Permissions are stored directly inside each document object using:
+- `owner`
+- `shared_with`
+
+Permission checks are enforced using helper functions:
+- `require_read`
+- `require_edit`
+- `require_owner`
+
+**Why:**  
+A full RBAC system with dedicated tables would significantly increase complexity. Inline role mapping made sharing and permission checks much easier to implement for the assignment.
+
+**Impact:**  
+- simpler logic  
+- easier debugging  
+- limited scalability and flexibility
+
+**Verdict:**  
+Compromise.
+
+---
+
+## 29. Server-side permission enforcement
+
+**Design (A1):**  
+Permissions had to be enforced at the API layer, not only in the UI.
+
+**Implementation:**  
+All protected document routes enforce permission checks in the backend before performing any operation. Direct API calls are validated the same way as frontend requests.
+
+**Why:**  
+This prevents unauthorized users from bypassing access control through manual API requests.
+
+**Impact:**  
+- stronger security  
+- satisfies assignment requirement  
+- ensures viewer/editor/owner roles are actually enforced
+
+**Verdict:**  
+Improvement and direct compliance with the original design.
+
+---
+
+## 30. Authentication middleware: distributed middleware design -> FastAPI dependency injection
+
+**Design (A1):**  
+The original design described centralized authentication middleware across services.
+
+**Implementation:**  
+FastAPI dependency injection is used through `Depends(get_current_user)` to enforce authentication on protected endpoints.
+
+**Why:**  
+FastAPI dependencies provide a clean and reusable way to enforce authentication without repeating code in every route.
+
+**Impact:**  
+- consistent auth enforcement  
+- cleaner backend code  
+- simpler integration with route handlers
+
+**Verdict:**  
+Improvement.
+
 Member 1 will document their own deviations here before final submission.
