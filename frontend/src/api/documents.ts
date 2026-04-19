@@ -25,6 +25,19 @@ export interface VersionSummary {
   saved_at: string;
 }
 
+export interface ShareLinkResponse {
+  token: string;
+  role: string;
+  expires_at: string;
+  url: string;
+}
+
+export interface JoinResponse {
+  document_id: string;
+  role: string;
+  title: string;
+}
+
 export const documentsApi = {
   list: () => api.get<DocumentSummary[]>("/api/documents"),
 
@@ -46,4 +59,10 @@ export const documentsApi = {
 
   restoreVersion: (docId: string, versionId: string) =>
     api.post<Document>(`/api/documents/${docId}/versions/${versionId}/restore`),
+
+  createShareLink: (docId: string, role: "viewer" | "editor") =>
+    api.post<ShareLinkResponse>(`/api/documents/${docId}/share-link`, { role }),
+
+  joinViaLink: (token: string) =>
+    api.post<JoinResponse>(`/api/documents/join/${token}`),
 };

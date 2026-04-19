@@ -1,4 +1,12 @@
+from __future__ import annotations
+import secrets
+import uuid
+from datetime import datetime, timezone, timedelta
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
+
 from backend.models.document import (
     Document, DocumentVersion,
     DocumentCreate, DocumentUpdate,
@@ -13,7 +21,21 @@ router = APIRouter(prefix="/api/documents", tags=["documents"])
 
 DOCS = "documents"
 VERSIONS = "versions"
-PERMISSIONS = "permissions"  # written by Member 1; read here for access checks
+PERMISSIONS = "permissions"
+SHARE_LINKS = "share_links"
+
+SHARE_LINK_TTL_DAYS = 7
+
+
+class ShareLinkRequest(BaseModel):
+    role: str = "editor"  # "viewer" or "editor"
+
+
+class ShareLinkResponse(BaseModel):
+    token: str
+    role: str
+    expires_at: str
+    url: str
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -173,3 +195,76 @@ def restore_version(
     raw["updated_at"] = utcnow()
     store.put(DOCS, doc_id, raw)
     return raw
+
+
+# ── share-by-link ─────────────────────────────────────────────────────────────
+
+@router.post("/{doc_id}/share-link", response_model=ShareLinkResponse)
+def create_share_link(
+    doc_id: str,
+    body: ShareLinkRequest,
+    user: CurrentUser = Depends(get_current_user),
+):
+    """Generate a one-time-use shareable link for the document (owner only)."""
+    doc = _get_doc_or_404(doc_id)
+    if doc["owner_id"] != user.id:
+        raise HTTPException(status_code=403, detail="Only the owner can share")
+    if body.role not in ("viewer", "editor"):
+        raise HTTPException(status_code=400, detail="role must be 'viewer' or 'editor'")
+
+    token = secrets.token_urlsafe(24)
+    expires_at = (datetime.now(timezone.utc) + timedelta(days=SHARE_LINK_TTL_DAYS)).isoformat()
+
+    store.put(SHARE_LINKS, token, {
+        "id": token,
+        "document_id": doc_id,
+        "role": body.role,
+        "created_by": user.id,
+        "expires_at": expires_at,
+        "used": False,
+    })
+
+    return ShareLinkResponse(
+        token=token,
+        role=body.role,
+        expires_at=expires_at,
+        url=f"/join/{token}",
+    )
+
+
+@router.post("/join/{token}", response_model=dict)
+def join_via_share_link(
+    token: str,
+    user: CurrentUser = Depends(get_current_user),
+):
+    """Accept a share link — grants the calling user access and returns the doc id."""
+    link = store.get(SHARE_LINKS, token)
+    if not link:
+        raise HTTPException(status_code=404, detail="Share link not found or expired")
+
+    now = datetime.now(timezone.utc).isoformat()
+    if link["expires_at"] < now:
+        raise HTTPException(status_code=410, detail="Share link has expired")
+
+    doc_id = link["document_id"]
+    doc = _get_doc_or_404(doc_id)
+
+    # Owner doesn't need a permission row.
+    if doc["owner_id"] != user.id:
+        # Check if user already has access — don't add duplicate rows.
+        perms = store.all_values(PERMISSIONS)
+        existing = next(
+            (p for p in perms if p["document_id"] == doc_id and p["user_id"] == user.id),
+            None,
+        )
+        if not existing:
+            perm_id = str(uuid.uuid4())
+            store.put(PERMISSIONS, perm_id, {
+                "id": perm_id,
+                "document_id": doc_id,
+                "user_id": user.id,
+                "role": link["role"],
+                "granted_at": now,
+            })
+
+    return {"document_id": doc_id, "role": link["role"], "title": doc.get("title", "")}

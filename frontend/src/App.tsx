@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import Editor from "./pages/Editor";
 import Login from "./pages/Login";
+import Join from "./pages/Join";
 
 function isLoggedIn() {
   return !!localStorage.getItem("access_token");
@@ -17,6 +18,7 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/documents/:id" element={<ProtectedRoute><Editor /></ProtectedRoute>} />
+      <Route path="/join/:token" element={<ProtectedRoute><Join /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

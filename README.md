@@ -114,7 +114,13 @@ port), so `VITE_WS_URL` should be `ws://localhost:8080` — see deviations below
 
 4. **Partial AI suggestion acceptance (+2 pts)** — the diff view in the AI panel makes each inserted word/phrase clickable. Clicking toggles it to a rejected state (greyed out, strikethrough). An "Accept Selected" button appears whenever at least one insert is rejected, applying only the kept changes via a word-level LCS diff. "Accept All" preserves the original full-acceptance flow.
 
-5. **Playwright E2E tests (+2 pts)** — `frontend/e2e/app.spec.ts` covers the full user journey in a real Chromium browser (6 tests, all passing):
+5. **Share-by-link** — document owners can generate a shareable URL with a chosen access level (viewer or editor). The link contains a cryptographically random token valid for 7 days. Anyone who opens the link and is logged in is automatically granted access and redirected to the document. Implemented via:
+   - `POST /api/documents/{id}/share-link` — generates the token
+   - `POST /api/documents/join/{token}` — redeems it, writes a permission row
+   - `/join/:token` frontend route — calls the API and navigates to the doc
+   - `🔗 Share` button in the editor topbar opens a modal with role selector and one-click copy.
+
+6. **Playwright E2E tests (+2 pts)** — `frontend/e2e/app.spec.ts` covers the full user journey in a real Chromium browser (6 tests, all passing):
    - Register → login
    - Create document → type → auto-save indicator
    - Save version → edit → open history → restore

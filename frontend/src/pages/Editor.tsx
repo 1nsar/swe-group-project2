@@ -4,7 +4,7 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import Placeholder from "@tiptap/extension-placeholder";
-import { documentsApi, type Document } from "../api/documents";
+import { documentsApi, type Document, type ShareLinkResponse } from "../api/documents";
 import EditorToolbar from "../components/EditorToolbar";
 import VersionHistory from "../components/VersionHistory";
 import PresenceBar from "../components/PresenceBar";
@@ -33,6 +33,10 @@ export default function Editor() {
   const [contextBefore, setContextBefore] = useState("");
   const [contextAfter, setContextAfter] = useState("");
   const [loading, setLoading] = useState(true);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareLink, setShareLink] = useState<ShareLinkResponse | null>(null);
+  const [shareRole, setShareRole] = useState<"viewer" | "editor">("editor");
+  const [shareCopied, setShareCopied] = useState(false);
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const broadcastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -204,6 +208,21 @@ export default function Editor() {
     }
   }
 
+  // ── share link ────────────────────────────────────────────────────────────
+  async function handleGenerateShareLink() {
+    if (!id) return;
+    const link = await documentsApi.createShareLink(id, shareRole);
+    setShareLink(link);
+  }
+
+  function handleCopy() {
+    if (!shareLink) return;
+    const url = `${window.location.origin}/join/${shareLink.token}`;
+    navigator.clipboard.writeText(url);
+    setShareCopied(true);
+    setTimeout(() => setShareCopied(false), 2000);
+  }
+
   // ── status label ──────────────────────────────────────────────────────────
   const statusLabel: Record<SaveStatus, string> = {
     idle: "",
@@ -245,7 +264,45 @@ export default function Editor() {
         <button className="ghost" onClick={handleSaveSnapshot} title="Save a named version snapshot">
           Save Version
         </button>
+        {doc?.owner_id === doc?.owner_id && (
+          <button className="ghost" onClick={() => { setShareOpen(true); setShareLink(null); }} title="Share document">
+            🔗 Share
+          </button>
+        )}
       </div>
+
+      {/* Share modal */}
+      {shareOpen && (
+        <div className="modal-backdrop" onClick={() => setShareOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <span>Share document</span>
+              <button className="ghost" onClick={() => setShareOpen(false)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <label className="ai-label">
+                Access level
+                <select value={shareRole} onChange={(e) => { setShareRole(e.target.value as "viewer" | "editor"); setShareLink(null); }}>
+                  <option value="editor">Editor — can read and write</option>
+                  <option value="viewer">Viewer — read only</option>
+                </select>
+              </label>
+              <button className="primary" onClick={handleGenerateShareLink} style={{ marginTop: "0.5rem" }}>
+                Generate link
+              </button>
+              {shareLink && (
+                <div className="share-link-box">
+                  <code className="share-link-url">{window.location.origin}/join/{shareLink.token}</code>
+                  <button className="primary" onClick={handleCopy}>
+                    {shareCopied ? "✓ Copied!" : "Copy"}
+                  </button>
+                  <p className="ai-note">Expires in 7 days. Anyone with this link can join as {shareLink.role}.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Formatting toolbar */}
       {editor && (

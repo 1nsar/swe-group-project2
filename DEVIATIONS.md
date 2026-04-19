@@ -425,6 +425,34 @@ document (Merged_Styled.docx).
   is essential for a realistic demo flow.
 - **Verdict:** improvement.
 
+### 25. Share-by-link: invitation email → token URL (improvement)
+
+- **Design (A1):** §2.3 sharing model describes inviting collaborators by
+  username or email, implying a server-side lookup and explicit permission
+  grant.
+- **Implementation:** `POST /api/documents/{id}/share-link` generates a
+  cryptographically random URL-safe token (`secrets.token_urlsafe(24)`) stored
+  in `backend/data/share_links.json` with a role (`viewer` or `editor`) and a
+  7-day expiry. The recipient visits `/join/<token>`, which calls
+  `POST /api/documents/join/{token}` — the backend validates the token, writes
+  a permission row, and redirects the frontend to the editor. No email
+  infrastructure required.
+- **Why:** email delivery requires an SMTP service (out of scope for a local
+  demo). Token-URL sharing is simpler, faster to demo, and mirrors the pattern
+  used by Notion, Figma, and Google Docs for guest access.
+- **Verdict:** improvement for the demo context.
+
+### 26. Share link storage: no expiry sweep (compromise)
+
+- **Design (A1):** no explicit share-link TTL policy defined.
+- **Implementation:** share links carry an `expires_at` timestamp checked at
+  join time, but there is no background job to delete expired rows from
+  `share_links.json`. Expired links are rejected correctly but the file grows
+  unboundedly in long-running deployments.
+- **Why:** a background sweep requires a scheduler out of scope for the
+  assignment demo.
+- **Verdict:** acceptable compromise for demo scope.
+
 ## Member 1 scope: auth, users, sharing, security
 
 Member 1 will document their own deviations here before final submission.
