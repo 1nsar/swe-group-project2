@@ -33,6 +33,7 @@ def app_env(tmp_path, monkeypatch):
     monkeypatch.setenv("LLM_PROVIDER", "mock")
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.setenv("ALLOW_DEV_WS_FALLBACK", "0")
+    monkeypatch.setenv("JWT_SECRET", "dev-secret")
 
     # Reload the store module so it picks up the new DATA_DIR.
     import backend.storage.json_store as store
@@ -67,7 +68,7 @@ def make_jwt(sub: str = "user-1", username: str = "alice", email: str = "alice@e
     """Build an unsigned JWT the stub dep will decode happily."""
     import jwt as pyjwt
     return pyjwt.encode(
-        {"sub": sub, "username": username, "email": email},
+        {"sub": sub, "username": username, "email": email, "type": "access"},
         "dev-secret",
         algorithm="HS256",
     )

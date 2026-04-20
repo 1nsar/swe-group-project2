@@ -34,6 +34,8 @@ from backend.tests.conftest import make_jwt
 
 
 def _auth(sub: str = "user-1", username: str = "alice") -> dict:
+    from backend.storage import json_store as store
+    store.put("users", sub, {"id": sub, "username": username, "email": f"{username}@test.example", "password": "x"})
     return {"Authorization": f"Bearer {make_jwt(sub=sub, username=username)}"}
 
 
